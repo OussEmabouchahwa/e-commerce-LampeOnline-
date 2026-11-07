@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  googleId     String?   @unique
+  name         String
+  avatarUrl    String?
+  phone        String?
+  role         String    @default("CLIENT") // CLIENT | ADMIN
+  status       String    @default("ACTIVE") // ACTIVE | BLOCKED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  wishlistItems WishlistItem[]
+  cartItems     CartItem[]
+  orders        Order[]
+  pageViews     PageView[]
+  funnelEvents  FunnelEvent[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  products Product[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  description   String
+  priceMillimes Int
+  stock         Int      @default(0)
+  categoryId    String
+  images        String   @default("[]") // JSON array of URLs
+  model3d       String   @default("{}") // JSON object
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category      Category       @relation(fields: [categoryId], references: [id])
+  wishlistItems WishlistItem[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  funnelEvents  FunnelEvent[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([priceMillimes])
+  @@index([stock])
+  @@index([createdAt])
+}
+
+model WishlistItem {
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+}
+
+model CartItem {
+  userId    String
+  productId String
+  qty       Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  userId          String
+  status          String   @default("PENDING")
+  totalMillimes   Int
+  paymentMethod   String
+  paymentStatus   String   @default("PENDING")
+  shippingAddress String   // JSON
+  idempotencyKey  String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id            String @id @default(cuid())
+  orderId       String
+  productId     String
+  nameSnapshot  String
+  priceSnapshot Int
+  qty           Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  orderId   String
+  provider  String
+  status    String   @default("PENDING")
+  reference String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model PageView {
+  id          String   @id @default(cuid())
+  visitorId   String
+  userId      String?
+  path        String
+  referrer    String?
+  sessionKey  String
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([visitorId])
+  @@index([createdAt])
+  @@index([path])
+  @@index([sessionKey])
+}
+
+model FunnelEvent {
+  id        String   @id @default(cuid())
+  visitorId String
+  userId    String?
+  event     String
+  productId String?
+  createdAt DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([visitorId])
+  @@index([event])
+  @@index([createdAt])
+}
