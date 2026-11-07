@@ -113,34 +113,20 @@ export default function AdminPage() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryWithCount | null>(null)
 
-  // Auth guard: must be ADMIN
-  if (!user || user.role !== 'ADMIN') {
-    return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <Card className="p-8">
-          <p className="text-xs text-danger mb-4">Accès réservé aux administrateurs.</p>
-          <Link to="/">
-            <Button variant="secondary" size="md">
-              Retour à l&apos;accueil
-            </Button>
-          </Link>
-        </Card>
-      </div>
-    )
-  }
+  const isAdmin = Boolean(user && user.role === 'ADMIN')
 
   // Stats query
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats', rangeDays],
     queryFn: () => api.get<AdminStats>(`/analytics/stats?range=${rangeDays}`),
-    enabled: section === 'dashboard',
+    enabled: isAdmin && section === 'dashboard',
   })
 
   // Products query
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['admin-products'],
     queryFn: () => api.get<{ data: ProductResponse[]; total: number }>('/products/admin/list?pageSize=50'),
-    enabled: section === 'products',
+    enabled: isAdmin && section === 'products',
   })
 
   // Categories query
@@ -153,14 +139,14 @@ export default function AdminPage() {
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['admin-orders'],
     queryFn: () => api.get<{ data: OrderResponse[]; total: number }>('/orders/all?pageSize=50'),
-    enabled: section === 'orders',
+    enabled: isAdmin && section === 'orders',
   })
 
   // Clients query
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
     queryKey: ['admin-clients'],
     queryFn: () => api.get<{ data: ClientListItem[]; total: number }>('/users?pageSize=50'),
-    enabled: section === 'clients',
+    enabled: isAdmin && section === 'clients',
   })
 
   // Product mutations
@@ -208,6 +194,22 @@ export default function AdminPage() {
   // Export CSV
   const handleExportCsv = () => {
     window.open('/api/orders/export', '_blank')
+  }
+
+  // Auth guard: must be ADMIN
+  if (!isAdmin) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <Card className="p-8">
+          <p className="text-xs text-danger mb-4">Accès réservé aux administrateurs.</p>
+          <Link to="/">
+            <Button variant="secondary" size="md">
+              Retour à l&apos;accueil
+            </Button>
+          </Link>
+        </Card>
+      </div>
+    )
   }
 
   return (
