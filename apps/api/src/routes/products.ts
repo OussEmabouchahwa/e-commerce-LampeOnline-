@@ -2,7 +2,13 @@ import { Router } from 'express'
 import { productController } from '../controllers/product.controller'
 import { validate } from '../middleware/validate'
 import { requireAuth, requireRole } from '../middleware/auth'
-import { ProductListQuerySchema, CreateProductSchema, UpdateProductSchema } from '@lampe/shared'
+import {
+  ProductListQuerySchema,
+  CreateProductSchema,
+  UpdateProductSchema,
+  CreateCategorySchema,
+  UpdateCategorySchema,
+} from '@lampe/shared'
 import multer from 'multer'
 import path from 'path'
 import { randomUUID } from 'crypto'
@@ -29,6 +35,27 @@ const upload = multer({
 const router = Router()
 
 router.get('/categories', productController.getCategories)
+router.post(
+  '/categories',
+  requireAuth,
+  requireRole('ADMIN'),
+  validate(CreateCategorySchema),
+  productController.createCategory,
+)
+router.patch(
+  '/categories/:id',
+  requireAuth,
+  requireRole('ADMIN'),
+  validate(UpdateCategorySchema),
+  productController.updateCategory,
+)
+router.delete(
+  '/categories/:id',
+  requireAuth,
+  requireRole('ADMIN'),
+  productController.deleteCategory,
+)
+
 router.get('/', validate(ProductListQuerySchema, 'query'), productController.list)
 router.get('/:slug', productController.getBySlug)
 

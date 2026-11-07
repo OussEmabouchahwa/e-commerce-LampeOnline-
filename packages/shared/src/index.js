@@ -36,6 +36,11 @@ export const CategorySchema = z.object({
     slug: z.string(),
     name: z.string(),
 });
+export const CreateCategorySchema = z.object({
+    name: z.string().min(2, 'Le nom doit comporter au moins 2 caractères').max(50),
+    slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, 'Le slug doit contenir des lettres minuscules, chiffres et tirets'),
+});
+export const UpdateCategorySchema = CreateCategorySchema.partial();
 // ─── Product ──────────────────────────────────────────────────────────────────
 export const Model3dSchema = z.object({
     shade: z.enum(['cone', 'sphere', 'cylinder', 'dome']),

@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ShoppingCart, Heart, Package, Box, Image as ImageIcon } from 'lucide-react'
@@ -10,17 +10,19 @@ import { ProductViewer3D } from '@/components/3d/ProductViewer3D'
 import { api } from '@/lib/api'
 import { formatPrice, cn } from '@/lib/utils'
 import { useCart } from '@/contexts/CartContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import type { ProductResponse } from '@lampe/shared'
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
   const { addItem } = useCart()
+  const { user } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [selectedImg, setSelectedImg] = useState(0)
   const [qty, setQty] = useState(1)
-  const [wishlisted, setWishlisted] = useState(false)
   const [viewMode, setViewMode] = useState<'photo' | '3d'>('photo')
 
   const { data: product, isLoading, isError } = useQuery({
@@ -28,6 +30,36 @@ export default function ProductPage() {
     queryFn: () => api.get<ProductResponse>(`/products/${slug!}`),
     enabled: !!slug,
   })
+
+  // Check if product is in wishlist
+  const { data: wishlistData } = useQuery({
+    queryKey: ['my-wishlist'],
+    queryFn: () => api.get<Array<{ productId: string }>>('/wishlist'),
+    enabled: !!user,
+  })
+
+  const isWishlisted = !!wishlistData?.some((item) => item.productId === product?.id)
+
+  const handleToggleWishlist = async () => {
+    if (!user) {
+      toast('Connectez-vous pour ajouter ce produit à vos coups de cœur', 'info')
+      return
+    }
+    if (!product) return
+
+    try {
+      if (isWishlisted) {
+        await api.delete(`/wishlist/${product.id}`)
+        toast('Retiré de vos coups de cœur', 'info')
+      } else {
+        await api.post('/wishlist', { productId: product.id })
+        toast('Ajouté à vos coups de cœur !', 'success')
+      }
+      queryClient.invalidateQueries({ queryKey: ['my-wishlist'] })
+    } catch {
+      toast('Une erreur est survenue', 'error')
+    }
+  }
 
   if (isLoading) return (
     <div className="max-w-content mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -177,11 +209,12 @@ export default function ProductPage() {
                 <ShoppingCart size={16} /> Add to cart
               </Button>
               <button
-                onClick={() => setWishlisted(!wishlisted)}
+                onClick={handleToggleWishlist}
                 className="p-3 border border-line rounded-input hover:border-bulb transition-colors"
-                aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                aria-label={isWishlisted ? 'Retirer de vos coups de cœur' : 'Ajouter à vos coups de cœur'}
+                title={isWishlisted ? 'Retirer de vos coups de cœur' : 'Ajouter à vos coups de cœur'}
               >
-                <Heart size={18} className={cn(wishlisted ? 'fill-bulb text-bulb' : 'text-mute')} />
+                <Heart size={18} className={cn(isWishlisted ? 'fill-bulb text-bulb' : 'text-mute')} />
               </button>
             </div>
           )}

@@ -54,11 +54,23 @@ export const analyticsRepository = {
     const avgOrderValue = orderCount > 0 ? Math.round(revenue / orderCount) : 0
     const conversionRate = uniqueVisitors > 0 ? (orderCount / uniqueVisitors) * 100 : 0
 
-    // Daily visits + revenue for chart
-    const dailyVisits = await prisma.$queryRawUnsafe<Array<{ date: string; count: number }>>(
-      `SELECT date(createdAt) as date, count(*) as count FROM PageView WHERE createdAt >= ? GROUP BY date(createdAt) ORDER BY date`,
-      rangeStart.toISOString(),
-    )
+    // Daily visits for chart (grouped by YYYY-MM-DD)
+    const pageViews = await prisma.pageView.findMany({
+      where: { createdAt: { gte: rangeStart } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    const visitsByDay: Record<string, number> = {}
+    for (const pv of pageViews) {
+      const day = pv.createdAt.toISOString().split('T')[0]
+      if (day) {
+        visitsByDay[day] = (visitsByDay[day] ?? 0) + 1
+      }
+    }
+    const dailyVisits = Object.entries(visitsByDay).map(([date, count]) => ({
+      date,
+      count,
+    }))
 
     // Funnel
     const funnelCounts = await prisma.funnelEvent.groupBy({

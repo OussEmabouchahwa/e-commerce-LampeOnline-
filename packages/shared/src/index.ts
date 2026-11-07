@@ -62,6 +62,15 @@ export const CategorySchema = z.object({
 })
 export type Category = z.infer<typeof CategorySchema>
 
+export const CreateCategorySchema = z.object({
+  name: z.string().min(2, 'Le nom doit comporter au moins 2 caractères').max(50),
+  slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, 'Le slug doit contenir des lettres minuscules, chiffres et tirets'),
+})
+export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>
+
+export const UpdateCategorySchema = CreateCategorySchema.partial()
+export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>
+
 // ─── Product ──────────────────────────────────────────────────────────────────
 
 export const Model3dSchema = z.object({

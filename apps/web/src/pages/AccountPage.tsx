@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -46,7 +45,17 @@ export default function AccountPage() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<TabKey>('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const tabParam = searchParams.get('tab') as TabKey | null
+  const activeTab: TabKey =
+    tabParam && ['overview', 'orders', 'wishlist', 'profile'].includes(tabParam)
+      ? tabParam
+      : 'overview'
+
+  const setActiveTab = (tab: TabKey) => {
+    setSearchParams({ tab })
+  }
 
   // Orders Query
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
@@ -332,22 +341,25 @@ export default function AccountPage() {
             ) : wishlistData && wishlistData.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {wishlistData.map((item) => (
-                  <Card key={item.productId} className="overflow-hidden flex flex-col justify-between">
-                    <div>
-                      <img
-                        src={item.product.images[0] ?? ''}
-                        alt={item.product.name}
-                        className="w-full h-44 object-cover"
-                      />
+                  <Card key={item.productId} className="overflow-hidden flex flex-col justify-between group">
+                    <Link to={`/products/${item.product.slug}`} className="block">
+                      <div className="relative aspect-[4/3] overflow-hidden bg-bg">
+                        <img
+                          src={item.product.images[0] ?? ''}
+                          alt={item.product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      </div>
                       <div className="p-4">
-                        <h3 className="text-xs font-bold text-ink mb-1 truncate">
+                        <p className="text-[11px] text-mute mb-1">{item.product.category?.name ?? 'Luminaire'}</p>
+                        <h3 className="text-xs font-bold text-ink mb-1 truncate group-hover:text-teal transition-colors">
                           {item.product.name}
                         </h3>
                         <p className="text-xs font-bold text-teal">
                           {formatPrice(item.product.priceMillimes)}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                     <div className="p-4 pt-0 flex gap-2">
                       <Button
                         variant="primary"
@@ -365,7 +377,7 @@ export default function AccountPage() {
                           toast(`Ajouté au panier`, 'success')
                         }}
                       >
-                        <ShoppingCart size={14} /> Ajouter
+                        <ShoppingCart size={14} /> Ajouter au panier
                       </Button>
                       <Button
                         variant="ghost"
@@ -373,6 +385,7 @@ export default function AccountPage() {
                         className="text-danger hover:bg-danger/10"
                         onClick={() => removeWishlistMutation.mutate(item.productId)}
                         aria-label="Supprimer de la liste"
+                        title="Retirer des coups de cœur"
                       >
                         <Trash2 size={16} />
                       </Button>

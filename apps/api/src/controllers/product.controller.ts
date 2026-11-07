@@ -104,8 +104,42 @@ export const productController = {
 
   async getCategories(_req: Request, res: Response, next: NextFunction) {
     try {
-      const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
+      const categories = await productRepository.listCategories()
       res.json(categories)
+    } catch (err) { next(err) }
+  },
+
+  async createCategory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name, slug } = req.body as { name: string; slug: string }
+      const existing = await productRepository.findCategoryBySlug(slug)
+      if (existing) throw Errors.Conflict('Une catégorie avec ce slug existe déjà.')
+      const cat = await productRepository.createCategory({ name, slug })
+      res.status(201).json(cat)
+    } catch (err) { next(err) }
+  },
+
+  async updateCategory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = String(req.params['id'])
+      const existing = await productRepository.findCategoryById(id)
+      if (!existing) throw Errors.NotFound('Catégorie')
+      const cat = await productRepository.updateCategory(id, req.body)
+      res.json(cat)
+    } catch (err) { next(err) }
+  },
+
+  async deleteCategory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = String(req.params['id'])
+      const existing = await productRepository.findCategoryById(id)
+      if (!existing) throw Errors.NotFound('Catégorie')
+      const productCount = await prisma.product.count({ where: { categoryId: id } })
+      if (productCount > 0) {
+        throw Errors.Conflict('Impossible de supprimer une catégorie liée à des produits existants.')
+      }
+      await productRepository.deleteCategory(id)
+      res.status(204).send()
     } catch (err) { next(err) }
   },
 }

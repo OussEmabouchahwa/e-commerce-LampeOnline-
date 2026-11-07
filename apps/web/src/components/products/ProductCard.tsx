@@ -4,7 +4,10 @@ import { Heart, ShoppingCart } from 'lucide-react'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { formatPrice, cn } from '@/lib/utils'
 import { useCart } from '@/contexts/CartContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '../ui/Toast'
+import { api } from '@/lib/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProductResponse } from '@lampe/shared'
 
 interface ProductCardProps {
@@ -13,10 +16,24 @@ interface ProductCardProps {
   onWishlistToggle?: (productId: string) => void
 }
 
-export function ProductCard({ product, wishlisted = false, onWishlistToggle }: ProductCardProps) {
+export function ProductCard({ product, wishlisted: wishlistedProp, onWishlistToggle }: ProductCardProps) {
   const { addItem } = useCart()
+  const { user } = useAuth()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [heartAnimating, setHeartAnimating] = useState(false)
+
+  // Check if wishlisted from cache if logged in
+  const { data: wishlistData } = useQuery({
+    queryKey: ['my-wishlist'],
+    queryFn: () => api.get<Array<{ productId: string }>>('/wishlist'),
+    enabled: !!user,
+  })
+
+  const isWishlisted =
+    wishlistedProp !== undefined
+      ? wishlistedProp
+      : !!wishlistData?.some((item) => item.productId === product.id)
 
   const image = product.images[0] ?? 'https://picsum.photos/seed/lamp/400/300'
 
@@ -40,14 +57,36 @@ export function ProductCard({ product, wishlisted = false, onWishlistToggle }: P
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault()
     addItem({ productId: product.id, qty: 1, name: product.name, priceMillimes: product.priceMillimes, image, slug: product.slug })
-    toast(`Added "${product.name}" to cart`, 'success')
+    toast(`Ajouté au panier : ${product.name}`, 'success')
   }
 
-  function handleWishlist(e: React.MouseEvent) {
+  async function handleWishlist(e: React.MouseEvent) {
     e.preventDefault()
     setHeartAnimating(true)
     setTimeout(() => setHeartAnimating(false), 300)
-    onWishlistToggle?.(product.id)
+
+    if (onWishlistToggle) {
+      onWishlistToggle(product.id)
+      return
+    }
+
+    if (!user) {
+      toast('Veuillez vous connecter pour enregistrer vos coups de cœur', 'info')
+      return
+    }
+
+    try {
+      if (isWishlisted) {
+        await api.delete(`/wishlist/${product.id}`)
+        toast(`Retiré des coups de cœur`, 'info')
+      } else {
+        await api.post('/wishlist', { productId: product.id })
+        toast(`Ajouté à vos coups de cœur !`, 'success')
+      }
+      queryClient.invalidateQueries({ queryKey: ['my-wishlist'] })
+    } catch {
+      toast('Une erreur est survenue', 'error')
+    }
   }
 
   return (
@@ -75,20 +114,20 @@ export function ProductCard({ product, wishlisted = false, onWishlistToggle }: P
             {/* Out of stock */}
             {product.stock === 0 && (
               <div className="absolute inset-0 bg-bg/70 flex items-center justify-center">
-                <span className="text-xs font-medium text-mute bg-surface/80 px-3 py-1 rounded-pill">Out of stock</span>
+                <span className="text-xs font-medium text-mute bg-surface/80 px-3 py-1 rounded-pill">Rupture de stock</span>
               </div>
             )}
             {/* Low stock warning */}
             {product.stock > 0 && product.stock <= 5 && (
               <div className="absolute top-2 left-2">
-                <span className="text-xs font-medium text-bulb bg-bg/90 px-2 py-0.5 rounded-pill">Only {product.stock} left</span>
+                <span className="text-xs font-medium text-bulb bg-bg/90 px-2 py-0.5 rounded-pill">Plus que {product.stock} restant(s)</span>
               </div>
             )}
             {/* Wishlist button */}
             <button
               onClick={handleWishlist}
               className="absolute top-2 right-2 p-2 rounded-full bg-surface/80 backdrop-blur-sm hover:bg-surface transition-colors"
-              aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              aria-label={isWishlisted ? 'Retirer de la liste' : 'Ajouter à la liste'}
             >
               <motion.div
                 animate={heartAnimating ? { scale: [1, 1.4, 1] } : {}}
@@ -96,7 +135,7 @@ export function ProductCard({ product, wishlisted = false, onWishlistToggle }: P
               >
                 <Heart
                   size={16}
-                  className={cn(wishlisted ? 'fill-bulb text-bulb' : 'text-mute')}
+                  className={cn(isWishlisted ? 'fill-bulb text-bulb' : 'text-mute')}
                 />
               </motion.div>
             </button>
@@ -119,7 +158,7 @@ export function ProductCard({ product, wishlisted = false, onWishlistToggle }: P
                   'p-2 rounded-input bg-teal text-white hover:opacity-90 transition-opacity',
                   'disabled:opacity-30 disabled:cursor-not-allowed',
                 )}
-                aria-label={`Add ${product.name} to cart`}
+                aria-label={`Ajouter ${product.name} au panier`}
               >
                 <ShoppingCart size={16} />
               </button>

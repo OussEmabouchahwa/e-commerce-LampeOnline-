@@ -87,4 +87,25 @@ export const productRepository = {
       include: { category: true },
     })
   },
+  async listCategories() {
+    return prisma.category.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { products: true } } },
+    })
+  },
+  async findCategoryBySlug(slug: string) {
+    return prisma.category.findUnique({ where: { slug } })
+  },
+  async findCategoryById(id: string) {
+    return prisma.category.findUnique({ where: { id } })
+  },
+  async createCategory(data: { name: string; slug: string }) {
+    return prisma.category.create({ data })
+  },
+  async updateCategory(id: string, data: Partial<{ name: string; slug: string }>) {
+    return prisma.category.update({ where: { id }, data })
+  },
+  async deleteCategory(id: string) {
+    return prisma.category.delete({ where: { id } })
+  },
 }
