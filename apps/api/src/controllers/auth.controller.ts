@@ -3,10 +3,12 @@ import { authService } from '../services/auth.service'
 import { userRepository } from '../repositories/user.repository'
 import { Errors } from '../lib/errors'
 
+const isProd = process.env['NODE_ENV'] === 'production'
+
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: process.env['NODE_ENV'] === 'production',
-  sameSite: 'lax' as const,
+  secure: isProd,
+  sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 

@@ -1,7 +1,8 @@
 // Centralized API client. All requests go through here.
 // Never store tokens — they live in httpOnly cookies.
 
-const BASE = '/api'
+const RAW_URL = import.meta.env.VITE_API_URL as string | undefined
+const BASE = RAW_URL ? `${RAW_URL.replace(/\/$/, '')}/api` : '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

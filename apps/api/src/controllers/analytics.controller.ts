@@ -25,7 +25,12 @@ export const analyticsController = {
 
       // Set visitor cookie (1 year, not httpOnly so JS can read for SPA)
       if (!req.cookies['visitor_id']) {
-        res.cookie('visitor_id', visitorId, { maxAge: 365 * 24 * 60 * 60 * 1000, sameSite: 'lax' })
+        const isProd = process.env['NODE_ENV'] === 'production'
+        res.cookie('visitor_id', visitorId, {
+          maxAge: 365 * 24 * 60 * 60 * 1000,
+          sameSite: isProd ? 'none' : 'lax',
+          secure: isProd,
+        })
       }
       res.status(204).send()
     } catch (err) { next(err) }

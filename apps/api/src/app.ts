@@ -17,11 +17,24 @@ import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
 
-const CLIENT_URL = process.env['CLIENT_URL'] ?? 'http://localhost:5173'
+app.set('trust proxy', 1)
+
+const rawClientUrl = process.env['CLIENT_URL'] ?? 'http://localhost:5173'
+const allowedOrigins = rawClientUrl.split(',').map((s) => s.trim())
 
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+      ) {
+        return callback(null, true)
+      }
+      return callback(null, false)
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   }),
